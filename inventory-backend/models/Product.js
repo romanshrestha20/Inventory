@@ -30,6 +30,8 @@ export const validateProductData = async ({ name, quantity, category }) => {
         return { valid: false, message: "Name is required" };
     }
 
+ 
+    
     if (!category || category.trim() === "") {
         return { valid: false, message: "Category is required" };
     }

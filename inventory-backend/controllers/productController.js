@@ -36,7 +36,6 @@ export const createProduct = async (req, res) => {
   try {
     const { name, quantity, category, description } = req.body;
 
-    // Await validation since it might be async
     const { valid, message } = await validateProductData({
       name,
       quantity,
@@ -47,12 +46,11 @@ export const createProduct = async (req, res) => {
       return res.status(400).json({ message });
     }
 
-    // Duplicate check is already handled inside validateProductData, so this is optional
     const existingProduct = await Product.findOne({ name, category });
     if (existingProduct) {
-      return res
-        .status(400)
-        .json({ message: "Product already exists in this category" });
+      return res.status(400).json({
+        message: `A product with name "${name}" already exists in the "${category}" category.`,
+      });
     }
 
     const newProduct = new Product({ name, quantity, category, description });
@@ -67,54 +65,21 @@ export const createProduct = async (req, res) => {
   }
 };
 
-// @desc    Get all products (with search, filter, pagination, sort)
-// @route   GET /api/products
-// @query   ?search=&category=&page=1&limit=10&sortBy=name&sortOrder=asc
+// @route GET /api/products
 export const getProducts = async (req, res) => {
   try {
-    const {
-      search,
-      category,
-      page = 1,
-      limit = 10,
-      sortBy = "createdAt",
-      sortOrder = "desc",
-    } = req.query;
-
-    const query = {};
-    if (search) {
-      // Prefer full-text search if indexed, else fallback to regex
-      query.$text = { $search: search };
-    }
-    if (category) {
-      query.category = category;
-    }
+    const { page = 1, limit = 10, sortBy = "createdAt", sortOrder = "desc" } = req.query;
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const sortDirection = sortOrder === "asc" ? 1 : -1;
 
-    const productsQuery = Product.find(query)
-      .skip(skip)
-      .limit(parseInt(limit))
-      .sort({ [sortBy]: sortDirection });
-
-    if (search) {
-      productsQuery
-        .select({ score: { $meta: "textScore" } })
-        .sort({ score: { $meta: "textScore" } });
-    }
-
     const [products, total] = await Promise.all([
-      productsQuery,
-      Product.countDocuments(query),
+      Product.find().skip(skip).limit(parseInt(limit)).sort({ [sortBy]: sortDirection }),
+      Product.countDocuments(),
     ]);
 
-    if (!products.length) {
-      return res.status(404).json({ message: "No products found" });
-    }
-
     res.status(200).json({
-      message: "Products retrieved successfully",
+      message: "Products retrieved",
       page: parseInt(page),
       limit: parseInt(limit),
       total,
@@ -122,9 +87,43 @@ export const getProducts = async (req, res) => {
       products,
     });
   } catch (error) {
-    handleServerError(res, error, "Error retrieving products");
+    handleServerError(res, error);
   }
 };
+
+
+
+export const searchProducts = async (req, res) => {
+  try {
+    const { query, category } = req.query;
+
+    const filter = {};
+
+    if (query?.trim()) {
+      filter.$text = { $search: query.trim() };
+    }
+
+    if (category?.trim()) {
+      filter.category = category.trim();
+    }
+
+    const products = await Product.find(filter).select(
+      filter.$text ? { score: { $meta: "textScore" } } : {}
+    ).sort(
+      filter.$text ? { score: { $meta: "textScore" } } : {}
+    );
+
+    if (!products.length) {
+      return res.status(404).json({ message: "No products found" });
+    }
+
+    res.status(200).json({ message: "Products retrieved successfully", products });
+
+  } catch (error) {
+    handleServerError(res, error, "Error searching products");
+  }
+};
+
 
 // @desc    Get a product by ID
 // @route   GET /api/products/:id
@@ -133,9 +132,7 @@ export const getProductById = async (req, res) => {
     const product = await findProductById(res, req.params.id);
     if (!product) return;
 
-    res
-      .status(200)
-      .json({ message: "Product retrieved successfully", product });
+    res.status(200).json({ message: "Product retrieved successfully", product });
   } catch (error) {
     handleServerError(res, error);
   }
@@ -156,10 +153,9 @@ export const updateProduct = async (req, res) => {
     });
 
     if (!valid) return res.status(400).json({ message });
+
     if (quantity != null && (typeof quantity !== "number" || quantity < 0)) {
-      return res
-        .status(400)
-        .json({ message: "Quantity must be a positive number" });
+      return res.status(400).json({ message: "Quantity must be a positive number" });
     }
 
     const duplicate = await Product.findOne({
@@ -169,11 +165,9 @@ export const updateProduct = async (req, res) => {
     });
 
     if (duplicate) {
-      return res
-        .status(400)
-        .json({
-          message: "Another product with this name and category already exists",
-        });
+      return res.status(400).json({
+        message: `Another product with this name and category already exists`,
+      });
     }
 
     product.name = name;
@@ -188,46 +182,7 @@ export const updateProduct = async (req, res) => {
   }
 };
 
-// @desc    Delete multiple products
-// @route   DELETE /api/products
-// @desc    Delete multiple products
-// @route   DELETE /api/products
-export const deleteMultipleProducts = async (req, res) => {
-  try {
-    const { ids } = req.body;
 
-    if (!Array.isArray(ids) || ids.length === 0) {
-      return res
-        .status(400)
-        .json({ message: "Product IDs must be a non-empty array" });
-    }
-    const foundIds = await Product.find({ _id: { $in: ids } }).distinct("_id");
-    const notFound = ids.filter(id => !foundIds.includes(id));
-    
-
-    const invalidIds = ids.filter((id) => !isValidObjectId(id));
-    if (invalidIds.length > 0) {
-      return res
-        .status(400)
-        .json({ message: "Some provided IDs are invalid", invalidIds });
-    }
-
-    const result = await Product.deleteMany({ _id: { $in: ids } });
-
-    if (result.deletedCount === 0) {
-      return res
-        .status(404)
-        .json({ message: "No products were deleted. Check if the IDs exist." });
-    }
-
-    res.status(200).json({
-      message: `${result.deletedCount} product(s) deleted successfully`,
-      deletedCount: result.deletedCount,
-    });
-  } catch (error) {
-    handleServerError(res, error);
-  }
-};
 
 // @desc    Delete a product
 // @route   DELETE /api/products/:id
@@ -243,6 +198,35 @@ export const deleteProduct = async (req, res) => {
   }
 };
 
+// @desc    Delete multiple products
+// @route   DELETE /api/products
+export const deleteMultipleProducts = async (req, res) => {
+  try {
+    
+    const { ids } = req.body; // Expecting an array of IDs
+    // Validate the IDs
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: "No product IDs provided" });
+    }
+    // Check if all IDs are valid ObjectId
+    const invalidIds = ids.filter((id) => !isValidObjectId(id));
+    if (invalidIds.length > 0) {
+      return res.status(400).json({ message: "Invalid product IDs", invalidIds });
+    }
+    
+    const deletedProducts = await Product.deleteMany({ _id: { $in: ids } });
+    if (deletedProducts.deletedCount === 0) {
+      return res.status(404).json({ message: "No products found to delete" });
+    }
+    res.status(200).json({
+      message: `${deletedProducts.deletedCount} products deleted successfully`,
+      deletedCount: deletedProducts.deletedCount,
+    });
+  } catch (error) {
+    handleServerError(res, error, "Error deleting products");
+  }
+};
+
 // @desc    Import products from CSV
 // @route   POST /api/products/import
 export const importProductsFromCSV = async (req, res) => {
@@ -253,15 +237,11 @@ export const importProductsFromCSV = async (req, res) => {
   const { mimetype, size, buffer } = req.file;
 
   if (mimetype !== "text/csv") {
-    return res
-      .status(400)
-      .json({ error: "Invalid file type. Only CSV files are allowed." });
+    return res.status(400).json({ error: "Invalid file type. Only CSV files are allowed." });
   }
 
   if (size > 5 * 1024 * 1024) {
-    return res
-      .status(400)
-      .json({ error: "File size exceeds the limit of 5MB." });
+    return res.status(400).json({ error: "File size exceeds the limit of 5MB." });
   }
 
   const products = [];
@@ -269,7 +249,6 @@ export const importProductsFromCSV = async (req, res) => {
 
   try {
     const stream = Readable.from(buffer);
-
     const rows = [];
 
     await new Promise((resolve, reject) => {
@@ -283,6 +262,14 @@ export const importProductsFromCSV = async (req, res) => {
     for (const [index, row] of rows.entries()) {
       const { name, quantity, category, description } = row;
 
+      if (!name || !category) {
+        errors.push({
+          row: index + 2,
+          message: "Name and Category are required fields",
+        });
+        continue;
+      }
+
       const parsedQuantity = parseInt(quantity, 10);
       if (isNaN(parsedQuantity) || parsedQuantity < 0) {
         errors.push({
@@ -292,6 +279,7 @@ export const importProductsFromCSV = async (req, res) => {
         });
         continue;
       }
+
       const { valid, message } = await validateProductData({
         name,
         quantity: parsedQuantity,
@@ -299,18 +287,17 @@ export const importProductsFromCSV = async (req, res) => {
       });
 
       if (!valid) {
-        errors.push({ row: index + 2, name, message }); // +2 because of header row and 0-based index
+        errors.push({ row: index + 2, name, message });
       } else {
         products.push({
-            name,
-            quantity: parsedQuantity,
-            category,
-            description
-          });          
+          name,
+          quantity: parsedQuantity,
+          category,
+          description,
+        });
       }
     }
 
-    // Insert only valid rows
     if (products.length > 0) {
       await Product.insertMany(products);
     }
@@ -325,38 +312,30 @@ export const importProductsFromCSV = async (req, res) => {
   }
 };
 
-
-
-// @desc    Export all products as pdf
+// @desc    Export all products as PDF
 // @route   GET /api/products/export/pdf
-
 export const exportProductsToPDF = async (req, res) => {
   try {
     const products = await Product.find();
 
     if (!products.length) {
-      return res.status(404).json({ message: "No products to export" });
+      return res.status(404).json({ message: "No products available to export" });
     }
 
-
-    const doc = new PDFDocument({ margin: 30, size: 'A4' });
+    const doc = new PDFDocument({ margin: 30, size: "A4" });
     let filename = `products_${Date.now()}.pdf`;
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename=${filename}`);
 
-
     doc.pipe(res);
 
-    // Add title
     doc.fontSize(20).text("Product List", { align: "center" });
     doc.moveDown();
 
     products.forEach((product, index) => {
-      doc
-        .fontSize(12)
-        .text(
-          `${index + 1}. ${product.name} - ${product.category} - ${product.quantity} units`
-        );
+      doc.fontSize(12).text(
+        `${index + 1}. ${product.name} - ${product.category} - ${product.quantity} units`
+      );
       doc.moveDown();
     });
 
@@ -364,4 +343,4 @@ export const exportProductsToPDF = async (req, res) => {
   } catch (error) {
     handleServerError(res, error, "Error exporting products to PDF");
   }
-}
+};
