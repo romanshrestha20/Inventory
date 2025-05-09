@@ -1,3 +1,5 @@
+// productRoutes.js
+
 import express from "express";
 import {
     createProduct,
@@ -7,56 +9,56 @@ import {
     updateProduct,
     deleteProduct,
     deleteMultipleProducts,
+    deleteAllProducts,
     importProductsFromCSV,
     exportProductsToPDF
-
-} from "../controllers/productController.js";
+} from "../controllers/productController.js"; // Assuming this path is correct
 import multer from "multer";
-import path from "path";
 
 const router = express.Router();
 
-// @route   POST /api/products
-router.post("/", createProduct);
-
-// @route   GET /api/products
-router.get("/", getProducts);
-
-router.get("/products/search", searchProducts);
-
-// @route   GET /api/products/:id
-router.get("/:id", getProductById);
-
-// @route   PUT /api/products/:id
-router.put("/:id", updateProduct);
-
-// @route   DELETE /api/products/:id
-router.delete("/:id", deleteProduct);
-
-// @route   DELETE /api/products
-router.delete("/", deleteMultipleProducts);
-
+// Multer setup for CSV import
+const storage = multer.memoryStorage(); // Stores file in memory
 const upload = multer({
-    storage: multer.memoryStorage(),
-    fileFilter: (req, file, cb) => {
-        const filetypes = /csv/;
-        const mimetype = filetypes.test(file.mimetype);
-        const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-
-        if (mimetype && extname) {
-            return cb(null, true);
-        }
-        cb("Error: File upload only supports the following filetypes - " + filetypes);
-    },
+  storage: storage,
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === "text/csv") {
+      cb(null, true);
+    } else {
+      // Pass the error to Express's error handler
+      // The asyncHandler in your controller will catch this if multer is used there
+      // Or, if used directly in router, Express error handler will take it.
+      cb(new Error("Only .csv format allowed!"));
+    }
+  },
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB
+  }
 });
 
-// @route   POST /api/products/import
-router.post("/import", upload.single("file"), importProductsFromCSV);
+// Routes for the base path: /api/products
+router.route('/')
+    .post(createProduct)    // POST /api/products
+    .get(getProducts)       // GET /api/products
+    .delete(deleteMultipleProducts); // DELETE /api/products (for multiple)
 
+// Search route - Place more specific routes before dynamic ones like /:id
+// The path will be /api/products/search
+router.get("/search", searchProducts);
 
-// @route   GET /api/products/export/pdf
-router.get("/export/pdf", exportProductsToPDF);
+// Import CSV - The path will be /api/products/import
+router.post('/import', upload.single('file'), importProductsFromCSV);
 
+// Export PDF - The path will be /api/products/export/pdf
+router.get('/export/pdf', exportProductsToPDF);
 
+// Delete all products - The path will be /api/products/all
+router.delete('/all', deleteAllProducts);
+
+// Routes for a specific product by ID: /api/products/:id
+router.route('/:id')
+    .get(getProductById)    // GET /api/products/:id
+    .put(updateProduct)     // PUT /api/products/:id
+    .delete(deleteProduct);  // DELETE /api/products/:id
 
 export default router;
