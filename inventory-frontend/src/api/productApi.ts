@@ -38,9 +38,16 @@ api.interceptors.response.use(
 
 // ========== API FUNCTIONS ==========
 
-export const getProducts = async (): Promise<Product[]> => {
-  const response = await api.get('/products');
-  return response.data.products;
+
+export const getProducts = async (params: { search?: string } = {}): Promise<Product[]> => {
+  const response = await api.get('/products', { params });
+  return response.data.products.map((product: any) => ({
+    id: product._id, // Map backend _id to frontend id
+    name: product.name,
+    category: product.category,
+    description: product.description,
+    quantity: product.quantity,
+  }));
 };
 
 export const getProductById = async (id: string): Promise<APIResponse<Product>> => {
@@ -53,12 +60,36 @@ export const createProduct = async (product: Product): Promise<APIResponse<Produ
   return response.data;
 };
 
-export const updateProduct = async (id: string, product: Product): Promise<APIResponse<Product>> => {
+// Update product quantity 
+export const updateProduct = async (id: string, product: Partial<Product>): Promise<APIResponse<Product>> => {
   const response = await api.put(`/products/${id}`, product);
   return response.data;
 };
+
 
 export const deleteProduct = async (id: string): Promise<APIResponse<Product>> => {
   const response = await api.delete(`/products/${id}`);
   return response.data;
 };
+
+export const deleteProducts = async (ids: string[]): Promise<APIResponse<Product[]>> => {
+  const response = await api.delete('/products', { data: { ids } });
+  return response.data;
+}
+
+// delete all products
+export const deleteAllProducts = async (): Promise<APIResponse<Product[]>> => {
+  const response = await api.delete('/products/all');
+  return response.data;
+}
+// search products
+export const searchProducts = async (search: string): Promise<Product[]> => { 
+  const response = await api.get('/products/search', { params: { search } });
+  return response.data.products.map((product: any) => ({
+    id: product._id, // Map backend _id to frontend id
+    name: product.name,
+    description: product.description,
+    quantity: product.quantity,
+  }));
+}
+// get product by name

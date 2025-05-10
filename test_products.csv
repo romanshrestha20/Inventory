@@ -1,0 +1,14 @@
+Name,Quantity,Category,Description
+"Super Widget","100","Electronics","A very super electronic widget with many features."
+"Awesome Gadget","50","Electronics","An awesome gadget for everyday use."
+"Basic Tool","200","Hardware",
+"Luxury Item","10",,"A high-end luxury product."
+"Flawed Product (Neg Qty)","-5","Miscellaneous","This product has a negative quantity."
+"Flawed Product (Text Qty)","abc","Miscellaneous","This product has text as quantity."
+"Simple Product","75","General",
+"Detailed Product","20","Software","This software product comes with extensive documentation and support."
+"Another Tool","30","Hardware","A handy tool for your workshop."
+"Empty Description Product","15","Office Supplies",
+"Product With Spaces In Name","25","Toys & Games","Fun for all ages"
+"Product, With Comma In Name","5","Books","A book about, commas"
+"Product ""With Quotes"" In Name","2","Stationery","Special quoted item"

@@ -1,64 +1,94 @@
-/* App.css */
+/* App General Styles */
 .App {
-  font-family: Arial, sans-serif;
-  text-align: center;
-  margin: 0;
-  padding: 0;
+  font-family: 'Arial', sans-serif;
+  background-color: #f4f7fa;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .App-header {
-  background-color: #282c34;
+  background-color: #007bff;
   color: white;
-  padding: 2rem;
+  padding: 20px;
+  text-align: center;
+  border-radius: 0 0 16px 16px;
 }
 
 .App-header h1 {
   font-size: 2.5rem;
-  margin: 0;
+  margin-bottom: 10px;
 }
 
 .App-header p {
   font-size: 1.2rem;
-  margin-top: 0.5rem;
+  margin: 0;
 }
 
-main {
-  padding: 2rem;
-}
-
+/* Product Section Styles */
 .product-section {
-  margin-top: 2rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 40px;
+  padding: 20px 40px;
+  flex-wrap: wrap;
+  margin-top: 20px;
 }
 
-.product-section h2 {
-  font-size: 2rem;
-  margin-bottom: 1rem;
+.product-create {
+  flex: 1;
+  min-width: 300px;
 }
 
-.product-section p {
-  font-size: 1rem;
-  color: #555;
+.product-create form {
+  background-color: white;
+  padding: 20px;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.App-footer {
-  margin-top: 2rem;
-  padding: 1rem;
-  background-color: #f0f0f0;
+.product-create h1 {
   text-align: center;
+  font-size: 2rem;
+  margin-bottom: 20px;
+}
+
+.product-list {
+  flex: 2;
+  min-width: 400px;
+}
+
+.product-list ul {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Footer Styles */
+.App-footer {
+  background-color: #007bff;
+  color: white;
+  text-align: center;
+  padding: 10px;
+  border-radius: 16px 16px 0 0;
 }
 
 .App-footer p {
+  font-size: 1rem;
   margin: 5px 0;
-  color: #777;
 }
 
-/* Optional: Add responsive styles */
+/* Media Queries for responsiveness */
 @media (max-width: 768px) {
-  .App-header h1 {
-    font-size: 2rem;
+  .product-section {
+    flex-direction: column;
+    padding: 10px;
   }
 
-  .product-section h2 {
-    font-size: 1.5rem;
+  .product-create,
+  .product-list {
+    flex: 1;
+    min-width: 100%;
   }
 }
